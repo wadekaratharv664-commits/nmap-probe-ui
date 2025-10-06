@@ -112,7 +112,7 @@ export default function NmapScanner() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-popover border-border">
-                  <SelectItem value="quick">Quick Scan (-F -T4 -Pn)</SelectItem>
+                  <SelectItem value="quick">Quick Scan (-T4 -Pn)</SelectItem>
                   <SelectItem value="tcp">TCP Connect (-sT -T4 -Pn)</SelectItem>
                   <SelectItem value="udp">UDP Scan (-sU -T4 -Pn)</SelectItem>
                   <SelectItem value="version">Version Detection (-sV -sC -O -Pn)</SelectItem>
