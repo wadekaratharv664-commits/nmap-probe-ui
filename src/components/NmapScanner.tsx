@@ -5,7 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Shield, Terminal } from "lucide-react";
+import { Loader2, Shield, Terminal, Sparkles } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // Backend API URL - make sure your FastAPI backend is running on this port
 const API_URL = "http://localhost:8000";
@@ -26,11 +28,14 @@ export default function NmapScanner() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ScanResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [explanation, setExplanation] = useState<string | null>(null);
+  const [loadingExplanation, setLoadingExplanation] = useState(false);
 
   const handleScan = async () => {
     setLoading(true);
     setError(null);
     setResult(null);
+    setExplanation(null);
 
     try {
       // POST request to FastAPI backend
@@ -41,6 +46,24 @@ export default function NmapScanner() {
       });
 
       setResult(response.data);
+      
+      // Get AI explanation
+      setLoadingExplanation(true);
+      try {
+        const { data: explanationData, error: explanationError } = await supabase.functions.invoke('explain-scan', {
+          body: { scanResult: response.data }
+        });
+
+        if (explanationError) {
+          console.error("Failed to get explanation:", explanationError);
+        } else if (explanationData?.explanation) {
+          setExplanation(explanationData.explanation);
+        }
+      } catch (explainErr) {
+        console.error("Error getting explanation:", explainErr);
+      } finally {
+        setLoadingExplanation(false);
+      }
     } catch (err: any) {
       const errorMsg = err.response?.data?.detail || err.message || "Scan failed";
       setError(errorMsg);
@@ -136,15 +159,49 @@ export default function NmapScanner() {
           {(result || error) && (
             <div className="space-y-2">
               <Label className="text-foreground">Results</Label>
-              <div className="bg-code-bg border border-border rounded-lg p-4 max-h-96 overflow-auto">
-                <pre className="text-sm text-foreground font-mono whitespace-pre-wrap">
-                  {error ? (
-                    <span className="text-destructive">Error: {error}</span>
-                  ) : (
-                    JSON.stringify(result, null, 2)
-                  )}
-                </pre>
-              </div>
+              {error ? (
+                <div className="bg-code-bg border border-border rounded-lg p-4">
+                  <pre className="text-sm text-destructive font-mono whitespace-pre-wrap">
+                    Error: {error}
+                  </pre>
+                </div>
+              ) : (
+                <Tabs defaultValue="explanation" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="explanation" className="flex items-center gap-2">
+                      <Sparkles className="h-4 w-4" />
+                      AI Explanation
+                    </TabsTrigger>
+                    <TabsTrigger value="raw" className="flex items-center gap-2">
+                      <Terminal className="h-4 w-4" />
+                      Raw Data
+                    </TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="explanation" className="mt-4">
+                    <div className="bg-card border border-border rounded-lg p-4 max-h-96 overflow-auto">
+                      {loadingExplanation ? (
+                        <div className="flex items-center justify-center py-8">
+                          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                          <span className="ml-2 text-muted-foreground">Generating explanation...</span>
+                        </div>
+                      ) : explanation ? (
+                        <div className="prose prose-sm max-w-none text-foreground">
+                          <pre className="whitespace-pre-wrap font-sans">{explanation}</pre>
+                        </div>
+                      ) : (
+                        <p className="text-muted-foreground">No explanation available</p>
+                      )}
+                    </div>
+                  </TabsContent>
+                  <TabsContent value="raw" className="mt-4">
+                    <div className="bg-code-bg border border-border rounded-lg p-4 max-h-96 overflow-auto">
+                      <pre className="text-sm text-foreground font-mono whitespace-pre-wrap">
+                        {JSON.stringify(result, null, 2)}
+                      </pre>
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              )}
             </div>
           )}
         </Card>

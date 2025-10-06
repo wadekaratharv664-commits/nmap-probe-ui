@@ -1,0 +1,4 @@
+project_id = "bmeumqrcjmpbmtemzhfm"
+
+[functions.explain-scan]
+verify_jwt = false
